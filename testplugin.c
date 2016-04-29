@@ -19,73 +19,47 @@
 #define NEWBRO_NAME "Kurot Askulf"
 #define NEWBRO_ALT "Kurot 'Carrot' Askulf"
 
+#define NSHIPS 246
+
 static PurplePlugin *test_plugin = NULL;
 static CURL *curl = NULL;
 
 static void chat_buddy_joined(PurpleConversation *conv, const char *name,
                           PurpleConvChatBuddyFlags flags,
                           gboolean new_arrival) {
-    if (!strncmp(conv->name, CHAT_NAME, 100) && !strncmp(name, BITTERVET_NAME, 100)) {
-        purple_debug_error(PLUGIN_ID, "Changing nick\n");
+    if (!strcmp(conv->name, CHAT_NAME) && \
+            !strcmp(name, BITTERVET_NAME)) {
+        purple_debug_info(PLUGIN_ID, "Changing nick to %s\n", NEWBRO_ALT);
         gchar *error;
         PurpleCmdStatus status = purple_cmd_do_command(conv, "nick " NEWBRO_ALT, "", &error);
         g_free(error);
-        purple_debug_error(PLUGIN_ID, "Executed %d\n", status);
+        purple_debug_info(PLUGIN_ID, "Executed %d\n", status);
     }
 }
 
 static void chat_buddy_left(PurpleConversation *conv, const char *name,
                           PurpleConvChatBuddyFlags flags,
                           gboolean new_arrival) {
-    if (!strncmp(conv->name, CHAT_NAME, 100) && !strncmp(name, BITTERVET_NAME, 100)) {
+    purple_debug_info(PLUGIN_ID, "Changing nick to %s\n", NEWBRO_NAME);
+    if (!strcmp(conv->name, CHAT_NAME) && \
+            !strcmp(name, BITTERVET_NAME)) {
         gchar *error;
         PurpleCmdStatus status = purple_cmd_do_command(conv, "nick " NEWBRO_NAME, "", &error);
         g_free(error);
+        purple_debug_info(PLUGIN_ID, "Executed %d\n", status);
     }
-    
 }
 
-size_t writefunc(void *ptr, size_t size, size_t nmemb, char *output) {
-    memcpy(output, ptr, size * nmemb);
-    output[size*nmemb] = '\0';
+int compare_str(const void *a, const void *b) {
+    char *aa, *bb;
+    aa = (char *)a;
+    bb = *((char **)b);
 
-    return size*nmemb;
-}
-
-int binsearch(char *arr[], int l, int r, char *x) {
-    while (l <= r) {
-        int m = l + (r-l)/2;
-        if (arr[m][0] == x[0]) {
-            if (arr[m][1] == x[1]) {
-                for (int i = 0; m+i < 246 && arr[m+i][1] == x[1]; i++) {
-                    if (!strncmp(x, arr[m+i], strlen(arr[m+i]))){
-                        return m+i;
-                    }
-                }
-                for (int i = -1; m+i >= 0 && arr[m+i][1] == x[1]; i--) {
-                    if (!strncmp(x, arr[m+i], strlen(arr[m+i]))){
-                        return m+i;
-                    }
-                }
-            }
-            if (arr[m][1] < x[1]) {
-                l = m + 1;
-            } else {
-                r = m - 1;
-            }
-        } else if (arr[m][0] < x[0]) {
-             l = m + 1;
-        } else {
-             r = m - 1; 
-        }
-    }
- 
-    return -1; 
-
+    return strncmp(aa, bb, strlen(bb));
 }
 
 int iseft(char *str) {
-    char *ships[246];
+    char *ships[NSHIPS];
 
     ships[0] = "Abaddon";
     ships[1] = "Absolution";
@@ -339,9 +313,15 @@ int iseft(char *str) {
     if (l <= 1 || str[0] != '[') {
         return -1;
     }
-    return binsearch(ships, 0, 245, str + 1);
+    char **ship = bsearch(str + 1, ships, NSHIPS, sizeof(char *), compare_str);
+    if (ship != NULL) {
+        return ship - ships;
+    } else {
+        return -1;
+    }
 }
 
+/* Substitutes in place '<br>' by '   \n' */
 void brtonl(char *str, int l) {
     for (int i = 0; i < l; i++) {
         if (str[i] == '<' && i < l - 3 && str[i+1] == 'b' && str[i+2] == 'r' && str[i+3] == '>') {
@@ -354,25 +334,36 @@ void brtonl(char *str, int l) {
     }
 }
 
+size_t writefunc(void *ptr, size_t size, size_t nmemb, char **output) {
+    *output = (char *)calloc(nmemb + 1, size);
+    memcpy(*output, ptr, size * nmemb);
+    (*output)[size*nmemb] = '\0';
+
+    return size*nmemb;
+}
+
 static void sending_chat_msg(PurpleAccount *accout, char **message, int id) {
     if (iseft(*message) >= 0) {
-	//purple_debug_warning(PLUGIN_ID, "EFT message\n");
+        purple_debug_warning(PLUGIN_ID, "EFT message detected\n");
+
         char *url_format_dna = "http://o.smium.org/api/convert/eft/dna/dna.txt?input=%s";
         char *url_format_loadout = "https://o.smium.org/loadout/dna/%s";
-        char request[10000], dnabuffer[10000], buffer[10000] = {'\0'};
+        char *request, *dnabuffer, *buffer;
 
+        buffer = (char *)calloc(strlen(*message) + 1, sizeof(char));
         memcpy(buffer, *message, strlen(*message));
         brtonl(buffer, strlen(buffer));
         char *output = curl_easy_escape(curl, buffer, 0);
+
+        request = (char *)calloc(strlen(url_format_dna) + strlen(output) + 1, sizeof(char));
         sprintf(request, url_format_dna, output);
-        curl_free(output);
 
         curl_easy_setopt(curl, CURLOPT_URL, request);
         curl_easy_setopt(curl, CURLOPT_POST, 1);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
         curl_easy_setopt(curl, CURLOPT_USERAGENT, USR_AGENT);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, dnabuffer);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &dnabuffer);
 
         CURLcode ret = curl_easy_perform(curl);
         if (ret != CURLE_OK) {
@@ -389,10 +380,14 @@ static void sending_chat_msg(PurpleAccount *accout, char **message, int id) {
             } else {
                 purple_debug_warning(PLUGIN_ID, "Request failed: %s\n", dnabuffer);
             }
-
         }
+
+        curl_free(output);
+        free(buffer);
+        free(dnabuffer);
+        free(request);
     } else {
-	//purple_debug_warning(PLUGIN_ID, "Normal message: %s\n", *message);
+        //purple_debug_warning(PLUGIN_ID, "Normal message: %s\n", *message);
     }
 }
 
@@ -414,7 +409,7 @@ static gboolean plugin_load(PurplePlugin *plugin) {
         return FALSE;
     }
 
-    purple_debug_warning(PLUGIN_ID, "test debug please ignore\n");
+    purple_debug_info(PLUGIN_ID, "TEST plugin loaded, please ignore\n");
 
     return TRUE;
 }
@@ -442,7 +437,9 @@ static PurplePluginInfo info = {
     "0.1",
 
     "Utilities for TEST jabber",          
-    "(UKOC best KOC!)",          
+    "Transforms an EFT formatted fit into an o.smium.org link\n"
+        "Contact: https://github.com/mrkurot/testplugin\n\n"
+        "(UKOC best KOC!)",          
     "Kurot Askulf",                          
     "",     
     
