@@ -12,7 +12,7 @@
 #include "debug.h"
 
 #define PLUGIN_ID "core-test-plugin"
-#define USR_AGENT "TESTPidginPlugin/0.1 (+mailto:mrkurotsuki@gmail.com)"
+#define USR_AGENT "TESTPidginPlugin/0.1 (+https://github.com/mrkurot/testplugin)"
 
 #define CHAT_NAME "ukoc@chat.pleaseignore.com"
 #define BITTERVET_NAME "Khuros Khan"
@@ -57,12 +57,12 @@ int binsearch(char *arr[], int l, int r, char *x) {
         int m = l + (r-l)/2;
         if (arr[m][0] == x[0]) {
             if (arr[m][1] == x[1]) {
-                for (int i = 0; arr[m][1] == x[1]; i++) {
+                for (int i = 0; m+i < 246 && arr[m+i][1] == x[1]; i++) {
                     if (!strncmp(x, arr[m+i], strlen(arr[m+i]))){
                         return m+i;
                     }
                 }
-                for (int i = -1; arr[m][1] == x[1]; i--) {
+                for (int i = -1; m+i >= 0 && arr[m+i][1] == x[1]; i--) {
                     if (!strncmp(x, arr[m+i], strlen(arr[m+i]))){
                         return m+i;
                     }
@@ -356,8 +356,9 @@ void brtonl(char *str, int l) {
 
 static void sending_chat_msg(PurpleAccount *accout, char **message, int id) {
     if (iseft(*message) >= 0) {
-        char *url_format_dna = "https://o.smium.org/api/convert/eft/dna/dna.txt?input=%s";
-        char *url_format_loadout = "https://o.smium.org/loadout/dna/%s\n";
+	//purple_debug_warning(PLUGIN_ID, "EFT message\n");
+        char *url_format_dna = "http://o.smium.org/api/convert/eft/dna/dna.txt?input=%s";
+        char *url_format_loadout = "https://o.smium.org/loadout/dna/%s";
         char request[10000], dnabuffer[10000], buffer[10000] = {'\0'};
 
         memcpy(buffer, *message, strlen(*message));
@@ -390,7 +391,9 @@ static void sending_chat_msg(PurpleAccount *accout, char **message, int id) {
             }
 
         }
-    } 
+    } else {
+	//purple_debug_warning(PLUGIN_ID, "Normal message: %s\n", *message);
+    }
 }
 
 static gboolean plugin_load(PurplePlugin *plugin) {

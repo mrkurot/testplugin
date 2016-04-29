@@ -1,0 +1,33 @@
+CC=gcc
+SRCS=testplugin.c
+OBJS=testplugin.o
+
+USER=`id -u -n`
+DEVDIR=c:/cygwin64/home/$(USER)/pidgin-devel/win32-dev
+
+CURLDIR=$(DEVDIR)/curl-7.48.0
+CURLLIB=$(CURLDIR)/build/lib
+CURLCFLAGS=-I$(CURLDIR)/include
+CURLLFLAGS=-L$(CURLLIB) -lcurl -lws2_32
+
+GTKDIR=$(DEVDIR)/gtk_2_0-2.14
+GTKCFLAGS=-I$(GTKDIR)/include/glib-2.0 -I$(GTKDIR)/lib/glib-2.0/include
+GTKLFLAGS=-L$(GTKDIR)/lib -lglib-2.0
+
+PIDGINDIR=$(DEVDIR)/../pidgin-2.10.12
+PIDGINCFLAGS=-I$(PIDGINDIR)/libpurple -I$(PIDGINDIR)/pidgin 
+PIDGINLFLAGS=-L$(PIDGINDIR)/libpurple -lpurple
+
+all:	testplugin.dll
+
+$(OBJS): ${SRCS}
+	$(CC) -std=c99 -DCURL_STATICLIB -fPIC -Wall -c $(SRCS) -o ${OBJS} -DVERSION=\"`date "+%Y%m-%d_%R"`\" $(GTKCFLAGS) $(CURLCFLAGS) $(PIDGINCFLAGS)
+
+clean:
+	rm *.o testplugin.dll
+
+testplugin.dll: $(OBJS)
+	$(CC) -shared -Wl,-soname,testplugin.so -o testplugin.dll $(CURLLIB)/libcurl.a $(OBJS) $(CURLLFLAGS) $(GTKLFLAGS) $(PIDGINLFLAGS)
+
+install:
+	cp -f testplugin.dll /cygdrive/c/Users/$(USER)/Application\ Data/.purple/plugins/
