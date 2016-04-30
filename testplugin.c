@@ -276,7 +276,7 @@ int iseft(char *str) {
     ships[212] = "Stabber";
     ships[213] = "Stabber Fleet Issue";
     ships[214] = "Stiletto";
-    shipw[215] = "Stork";
+    ships[215] = "Stork";
     ships[216] = "Stratios";
     ships[217] = "Succubus";
     ships[218] = "Svipul";
